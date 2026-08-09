@@ -1,6 +1,6 @@
 # s3-data-pipeline
 
-A small ELT pipeline: read a public dataset from S3, transform it with
+A small ETL pipeline: read a public dataset from S3, transform it with
 [Polars](https://pola.rs), write the result back to S3 — built as a
 portfolio project to demonstrate data engineering fundamentals in Python.
 
