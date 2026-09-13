@@ -11,16 +11,17 @@ brew install awscli
 aws --version
 ```
 
-## 2. Create an IAM user scoped to just this project
+## 2. Create an IAM group scoped to just this project, and a user in it
 
-Don't reuse root/admin credentials for a portfolio project. Create an IAM
-user that can only touch the one bucket this pipeline writes to.
+Don't reuse root/admin credentials for a portfolio project, and don't
+attach policies directly to a user — policies belong on a group, so
+permissions stay easy to audit and change later. This project gets its
+own group so its access stays isolated from any other project's bucket.
 
-1. In the [IAM console](https://console.aws.amazon.com/iam/), create a user
-   named e.g. `s3-data-pipeline-dev` with **programmatic access** (access
-   key, no console password needed).
-2. Attach an inline policy (replace `YOUR_BUCKET_NAME` with the bucket
-   you'll create in step 3):
+1. In the [IAM console](https://console.aws.amazon.com/iam/groups), create
+   a group named e.g. `s3-data-pipeline-dev`.
+2. Attach a customer-managed policy to the **group** (replace
+   `YOUR_BUCKET_NAME` with the bucket you'll create in step 3):
 
    ```json
    {
@@ -40,8 +41,17 @@ user that can only touch the one bucket this pipeline writes to.
    }
    ```
 
-3. Save the generated **access key ID** and **secret access key** — you
+3. Create a user (e.g. `s3-data-pipeline-dev`) with **programmatic access**
+   (access key, no console password needed), and add it to the
+   `s3-data-pipeline-dev` group instead of attaching any policy to the
+   user directly.
+4. Save the generated **access key ID** and **secret access key** — you
    won't be able to see the secret again after this step.
+
+A group per project keeps access isolated and works well for a handful of
+projects. If this grows to many small projects, a single shared group with
+a policy scoped per-user (e.g. via `${aws:username}` or resource tags)
+scales better than creating a new group for every one.
 
 ## 3. Create the destination bucket
 

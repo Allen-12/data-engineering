@@ -13,3 +13,4 @@ dist/
 
 # Local secrets/config
 .env
+*_accessKeys.csv
