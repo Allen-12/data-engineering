@@ -1,0 +1,2 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+dest_bucket_name = "your-bucket-name-here"

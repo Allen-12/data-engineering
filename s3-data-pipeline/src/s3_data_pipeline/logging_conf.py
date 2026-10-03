@@ -13,6 +13,9 @@ def configure_logging(level: int = logging.INFO) -> None:
         datefmt="%Y-%m-%dT%H:%M:%S%z",
         stream=sys.stdout,
     )
+    # basicConfig is a no-op when handlers already exist (e.g. Lambda pre-installs
+    # one), which would leave the level at WARNING and drop our INFO logs.
+    logging.getLogger().setLevel(level)
 
 
 def get_logger(name: str) -> logging.Logger:

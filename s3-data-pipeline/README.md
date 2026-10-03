@@ -37,8 +37,11 @@ src/s3_data_pipeline/
   load.py                # authenticated write to your destination bucket
   pipeline.py              # orchestrates extract -> transform -> load
   logging_conf.py           # logging setup
+  lambda_handler.py          # AWS Lambda entrypoint wrapping pipeline.run()
 tests/
   test_transform.py          # unit tests, no AWS access required
+Dockerfile                    # Lambda container image
+infra/                         # Terraform: ECR, Lambda, IAM, logs, EventBridge schedule
 ```
 
 ## Running it
@@ -71,8 +74,42 @@ aws s3 ls s3://<your-bucket>/processed/noaa-gsod/ --recursive
 | **uv** | Fast, modern Python dependency & environment management |
 | **pytest** | Transform logic is pure functions over Polars frames — testable with zero AWS calls |
 
-## Phase 2 (planned)
+## Deploying to AWS (dev)
 
-This is Phase 1: a working local pipeline. Phase 2 will deploy it to AWS
-(target compute, scheduling, and IaC still to be decided) as a dev
-environment — tracked separately.
+The pipeline also runs as an AWS Lambda function, defined entirely in
+Terraform under `infra/`:
+
+```
+EventBridge schedule ──► Lambda (container image, arm64) ──► s3://<your-bucket>/processed/...
+                              ▲                  │
+                    ECR repo (image)       CloudWatch Logs (14-day retention)
+```
+
+- **Lambda as a container image**, not a zip — Polars' compiled binaries
+  exceed Lambda's 250MB zip limit. Terraform builds the image with the
+  `kreuzwerker/docker` provider and pushes it to ECR as part of `apply`.
+- **Least-privilege execution role**: `s3:ListBucket`, `s3:GetObject` and
+  `s3:PutObject` on the destination bucket only, plus writes to its own log group.
+- **Two identities by design**: the narrow pipeline user runs the app; a
+  separate `terraform-deployer` profile (broader permissions) provisions infra.
+  The destination bucket is referenced, not managed, by Terraform.
+- **Schedule is off by default** (`schedule_enabled = false`); flip it in
+  `terraform.tfvars` and re-apply to enable the daily 06:00 UTC run.
+- **Lambda gotchas handled**: `AWS_REGION` is reserved so it isn't set, and
+  `POLARS_TEMP_DIR=/tmp/polars` is required because Lambda has no `$HOME`.
+
+Requires Terraform and Docker running locally.
+
+```bash
+cd infra
+cp terraform.tfvars.example terraform.tfvars   # set dest_bucket_name
+terraform init
+terraform plan
+terraform apply
+aws lambda invoke --function-name s3-data-pipeline-dev --profile terraform-deployer out.json
+```
+
+## Roadmap
+
+Planned next: CI/CD with GitHub Actions (OIDC instead of static keys), a
+remote Terraform state backend, and failure alerting.

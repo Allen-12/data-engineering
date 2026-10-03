@@ -14,3 +14,10 @@ dist/
 # Local secrets/config
 .env
 *_accessKeys.csv
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+crash.log
